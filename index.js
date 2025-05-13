@@ -11,7 +11,10 @@ const app = express();
 // Для разработки - разрешить все origin
 app.use(
   cors({
-    origin: ["http://localhost:3000", "https://your-netlify-app.netlify.app"],
+    origin: [
+      "http://localhost:3000",
+      "https://brilliant-parfait-4fe1fb.netlify.app/",
+    ],
     credentials: true,
   })
 );
