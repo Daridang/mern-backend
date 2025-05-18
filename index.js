@@ -28,10 +28,8 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Статика для картинок, если есть папка public/images
 app.use("/images", express.static("public/images"));
 
-// API-маршруты
 app.use("/api/recipes", recipesRoute);
 app.use("/api/upload", upload.single("image"), uploaderRoute);
 
