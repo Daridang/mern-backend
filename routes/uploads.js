@@ -1,8 +1,10 @@
 import dotenv from "dotenv";
 dotenv.config();
+
 import { v2 as cloudinary } from "cloudinary";
 import express from "express";
-import path from "path";
+import streamifier from "streamifier";
+// import path from "path";
 
 const router = express.Router();
 
@@ -14,26 +16,34 @@ cloudinary.config({
 
 router.post("/", async (req, res) => {
   try {
-    if (!req.file) {
+    if (!req.file || !req.file.buffer) {
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    // На всякий случай приводим путь к unix-стилю
-    const filePath = req.file.path.split(path.sep).join("/");
+    // Функция-обёртка, чтоб await работал с upload_stream
+    const uploadFromBuffer = (buffer) => {
+      return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          { folder: "your_folder_name" },
+          (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+          }
+        );
+        // Передаём буфер в стрим
+        streamifier.createReadStream(buffer).pipe(uploadStream);
+      });
+    };
 
-    console.log("Uploading to Cloudinary:", filePath);
-    const result = await cloudinary.uploader.upload(filePath, {
-      folder: "your_folder_name", // необязательно: положить в папку
-      use_filename: true, // оставить оригинальное имя
-      unique_filename: false, // не генерировать новое имя
-    });
-
+    // Загрузка
+    const result = await uploadFromBuffer(req.file.buffer);
     console.log("Cloudinary result:", result);
-    // result.secure_url — URL загруженного изображения
-    res.status(200).json({ url: result.secure_url });
+
+    // Отдаём URL обратно клиенту
+    return res.status(200).json({ url: result.secure_url });
   } catch (error) {
-    console.error("Cloudinary upload error:", error);
-    res.status(500).json({ error: error.message || "Upload failed" });
+    console.error("Upload error:", error);
+    return res.status(500).json({ error: error.message });
   }
 });
 

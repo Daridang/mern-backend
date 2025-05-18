@@ -12,7 +12,9 @@ import uploaderRoute from "./routes/uploads.js";
 const app = express();
 await connectDB();
 console.log("Подключились к Mongo по URI:", process.env.MONGO_URI);
-const upload = multer({ dest: "uploads/" });
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 app.use(
   cors({
