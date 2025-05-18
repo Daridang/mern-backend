@@ -2,13 +2,15 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import express from "express";
-import mongoose from "mongoose";
 import cors from "cors";
+import connectDB from "./config/db.js";
+import recipesRoute from "./routes/recipes.js";
 
 const app = express();
+await connectDB();
+console.log("Подключились к Mongo по URI:", process.env.MONGO_URI);
 
-// Middleware
-// Для разработки - разрешить все origin
+
 app.use(
   cors({
     origin: [
@@ -20,18 +22,13 @@ app.use(
 );
 app.use(express.json());
 
-// Подключение к MongoDB Atlas
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB connected!"))
-  .catch((err) => console.log("MongoDB error:", err));
+// Статика для картинок, если есть папка public/images
+app.use("/images", express.static("public/images"));
 
-// Тестовый роут
-app.get("/api/test", (req, res) => {
-  res.json({ message: "Backend works!" });
-});
+// API-маршруты
+app.use("/api/recipes", recipesRoute);
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT ?? 5000;
 app.listen(PORT, () => {
-  console.log(`Server started on port ${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });

@@ -1,0 +1,40 @@
+import mongoose from "mongoose";
+
+const { Schema, model } = mongoose;
+
+const IngredientGroupSchema = new Schema({
+  name: String,
+  items: [
+    {
+      item: String,
+      amount: String,
+    },
+  ],
+});
+
+const InstructionGroupSchema = new Schema({
+  name: String,
+  steps: [String],
+});
+
+const RecipeSchema = new Schema({
+  title: { type: String, required: true },
+  description: String,
+  category: String,
+  yield: String,
+  serving_size: String,
+  prep_time: String,
+  temperature: String,
+  image: String, // URL или относительный путь
+
+  ingredients: {
+    groups: [IngredientGroupSchema],
+  },
+  equipment: [String],
+  instructions: { groups: [InstructionGroupSchema] },
+  extras: [String],
+
+  created_at: { type: Date, default: Date.now },
+});
+
+export default model("recipes", RecipeSchema);
