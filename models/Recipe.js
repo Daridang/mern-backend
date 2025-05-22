@@ -25,7 +25,7 @@ const RecipeSchema = new Schema({
   serving_size: String,
   prep_time: String,
   temperature: String,
-  image: String, // URL или относительный путь
+  image: String,
 
   ingredients: {
     groups: [IngredientGroupSchema],

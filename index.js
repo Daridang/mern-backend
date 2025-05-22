@@ -30,7 +30,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/images", express.static("public/images"));
 
 app.use("/api/recipes", recipesRoute);
-app.use("/api/auth", authRoute); // Use authentication routes
+app.use("/api/auth", authRoute);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
