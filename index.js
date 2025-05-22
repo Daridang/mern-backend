@@ -7,6 +7,7 @@ import cors from "cors";
 
 import connectDB from "./config/db.js";
 import recipesRoute from "./routes/recipes.js";
+import authRoute from "./routes/auth.js";
 
 await connectDB();
 console.log("✅ Connected to MongoDB");
@@ -29,6 +30,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/images", express.static("public/images"));
 
 app.use("/api/recipes", recipesRoute);
+app.use("/api/auth", authRoute); // Use authentication routes
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
