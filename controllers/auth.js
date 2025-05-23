@@ -1,7 +1,7 @@
 // controller/auth.js
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
