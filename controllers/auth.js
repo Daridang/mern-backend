@@ -22,6 +22,7 @@ const generateToken = (user) => {
 // POST /api/auth/register
 export const register = async (req, res) => {
   try {
+    console.log(`object: ${JSON.stringify(req.body)}`);
     const { name, email, password } = req.body;
 
     // Check if user already exists

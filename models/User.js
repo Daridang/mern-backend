@@ -18,7 +18,6 @@ const UserSchema = new Schema(
     email: {
       type: String,
       required: [true, "Email is required"],
-      unique: true,
       lowercase: true,
       trim: true,
       match: [
@@ -60,24 +59,6 @@ const UserSchema = new Schema(
     },
     resetToken: String,
     resetTokenExpiration: Date,
-    username: { type: String, required: true, unique: true },
-    passwordHash: { type: String, required: true },
-    avatarUrl: String,
-    
-    // References to user's recipes
-    recipes: [{ type: Schema.Types.ObjectId, ref: "recipes" }],
-    
-    // References to user's comments
-    comments: [{ type: Schema.Types.ObjectId, ref: "Comment" }],
-    
-    // References to recipes liked by user
-    likedRecipes: [{ type: Schema.Types.ObjectId, ref: "recipes" }],
-    
-    // References to comments liked by user
-    likedComments: [{ type: Schema.Types.ObjectId, ref: "Comment" }],
-    
-    created_at: { type: Date, default: Date.now },
-    updated_at: { type: Date, default: Date.now },
   },
   {
     timestamps: true,
@@ -108,7 +89,7 @@ UserSchema.pre("save", async function () {
 });
 
 // Pre-save middleware to update the updated_at field
-UserSchema.pre('save', function(next) {
+UserSchema.pre("save", function (next) {
   this.updated_at = Date.now();
   next();
 });
