@@ -19,6 +19,6 @@ router.get("/user/:userId", getUserComments);
 router.post("/", auth, createComment);
 router.put("/:id", auth, updateComment);
 router.delete("/:id", auth, deleteComment);
-router.post("/:id/like", auth, toggleLikeComment);
+router.patch("/:id/like", auth, toggleLikeComment);
 
 export default router;

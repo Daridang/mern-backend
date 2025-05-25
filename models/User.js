@@ -46,6 +46,13 @@ const UserSchema = new Schema(
       },
       default: "user",
     },
+    comments: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Comment",
+      },
+    ],
+
     isActive: {
       type: Boolean,
       default: true,

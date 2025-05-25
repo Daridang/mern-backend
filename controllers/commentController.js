@@ -90,7 +90,7 @@ export const getUserComments = async (req, res) => {
     const comments = await Comment.find({
       author: userId,
     })
-      .populate("recipe", "title") 
+      .populate("recipe", "title")
       .populate("author", "name username avatar")
       .populate({
         path: "replies",
@@ -205,7 +205,6 @@ export const toggleLikeComment = async (req, res) => {
     const userId = req.userId;
 
     const comment = await Comment.findById(id);
-
     if (!comment) {
       return res.status(404).json({ message: "Comment not found" });
     }
@@ -236,17 +235,21 @@ export const toggleLikeComment = async (req, res) => {
     const updatedComment = await Comment.findByIdAndUpdate(id, update, {
       new: true,
     });
+    if (!updatedComment) {
+      return res.status(404).json({ message: "Comment not found for update" });
+    }
 
     // Update user's likedComments
-    await User.findByIdAndUpdate(userId, userUpdate);
+    const updatedUser = await User.findByIdAndUpdate(userId, userUpdate);
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found for update" });
+    }
 
     res.status(200).json(updatedComment);
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        message: "Failed to toggle like on comment",
-        error: error.message,
-      });
+    res.status(500).json({
+      message: "Failed to toggle like on comment",
+      error: error.message,
+    });
   }
 };
