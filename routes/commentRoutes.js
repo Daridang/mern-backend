@@ -5,13 +5,15 @@ import {
   updateComment,
   deleteComment,
   toggleLikeComment,
+  getUserComments,
 } from "../controllers/commentController.js";
 import auth from "../middleware/auth.js"; // Импорт по умолчанию
 
 const router = express.Router();
 
 // Public routes
-router.get("/:recipeId", getRecipeComments);
+router.get("/recipe/:recipeId", getRecipeComments);
+router.get("/user/:userId", getUserComments);
 
 // Protected routes
 router.post("/", auth, createComment);
