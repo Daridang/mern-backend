@@ -6,8 +6,9 @@ import express from "express";
 import cors from "cors";
 
 import connectDB from "./config/db.js";
-import recipesRoute from "./routes/recipes.js";
-import authRoute from "./routes/auth.js";
+import recipesRoute from "./routes/recipesRoutes.js";
+import authRoute from "./routes/authRoutes.js";
+import commentsRoute from "./routes/commentRoutes.js";
 
 await connectDB();
 console.log("✅ Connected to MongoDB");
@@ -31,6 +32,8 @@ app.use("/images", express.static("public/images"));
 
 app.use("/api/recipes", recipesRoute);
 app.use("/api/auth", authRoute);
+
+app.use("/api/comments", commentsRoute);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

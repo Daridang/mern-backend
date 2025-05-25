@@ -2,6 +2,8 @@
 import streamifier from "streamifier";
 import cloudinary from "../config/cloudinary.js";
 import Recipe from "../models/Recipe.js";
+import User from "../models/User.js";
+import Comment from "../models/Comment.js";
 import { validationResult } from "express-validator";
 
 /**
@@ -25,8 +27,23 @@ async function uploadToCloudinary(buffer) {
  */
 export const getAll = async (req, res, next) => {
   try {
-    const list = await Recipe.find().sort({ created_at: -1 });
-    res.json(list);
+    const { page = 1, limit = 10, category } = req.query;
+    const query = category ? { category } : {};
+    
+    const list = await Recipe.find(query)
+      .populate('author', 'name username avatar')
+      .sort({ created_at: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit)
+      .exec();
+    
+    const count = await Recipe.countDocuments(query);
+    
+    res.json({
+      recipes: list,
+      totalPages: Math.ceil(count / limit),
+      currentPage: parseInt(page)
+    });
   } catch (err) {
     next(err); // Pass error to error handling middleware
   }
@@ -37,11 +54,30 @@ export const getAll = async (req, res, next) => {
  */
 export const getById = async (req, res, next) => {
   try {
-    const recipe = await Recipe.findById(req.params.id);
+    const recipe = await Recipe.findById(req.params.id)
+      .populate('author', 'name username avatar');
+      
     if (!recipe) {
       return res.status(404).json({ error: "Recipe not found" });
     }
     res.json(recipe);
+  } catch (err) {
+    next(err); // Pass error to error handling middleware
+  }
+};
+
+/**
+ * GET /api/recipes/user/:userId
+ */
+export const getUserRecipes = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    
+    const recipes = await Recipe.find({ author: userId })
+      .populate('author', 'name username avatar')
+      .sort({ created_at: -1 });
+    
+    res.json(recipes);
   } catch (err) {
     next(err); // Pass error to error handling middleware
   }
@@ -114,6 +150,12 @@ export const createRecipe = async (req, res, next) => {
       equipment: parsedFields.equipment,
       instructions: parsedFields.instructions,
       extras: parsedFields.extras,
+      author: req.userId, // Add the user ID as author
+    });
+
+    // 4) Add recipe reference to user
+    await User.findByIdAndUpdate(req.userId, {
+      $push: { recipes: recipe._id }
     });
 
     res.status(201).json(recipe);
@@ -128,6 +170,17 @@ export const createRecipe = async (req, res, next) => {
  */
 export const updateRecipe = async (req, res, next) => {
   try {
+    // Check if user is the author of the recipe
+    const recipe = await Recipe.findById(req.params.id);
+    if (!recipe) {
+      return res.status(404).json({ error: "Recipe not found" });
+    }
+    
+    // Verify ownership
+    if (recipe.author.toString() !== req.userId) {
+      return res.status(403).json({ error: "You can only update your own recipes" });
+    }
+    
     // 1) If there's a new file, upload it
     let imageUrl;
     if (req.file?.buffer) {
@@ -159,13 +212,14 @@ export const updateRecipe = async (req, res, next) => {
       serving_size,
       prep_time,
       temperature,
-      image_url: imageUrl,
+      image: imageUrl || recipe.image, // Use existing image if no new one
       ...parseJsonFields(req.body, [
         "ingredients",
         "equipment",
         "instructions",
         "extras",
       ]),
+      updated_at: Date.now(),
     };
 
     // Remove undefined fields
@@ -179,9 +233,6 @@ export const updateRecipe = async (req, res, next) => {
       runValidators: true, // Enable validation during update
     });
 
-    if (!updated) {
-      return res.status(404).json({ error: "Recipe not found" });
-    }
     res.json(updated);
   } catch (err) {
     next(err); // Pass error to error handling middleware
@@ -193,11 +244,82 @@ export const updateRecipe = async (req, res, next) => {
  */
 export const deleteRecipe = async (req, res, next) => {
   try {
-    const deleted = await Recipe.findByIdAndDelete(req.params.id);
-    if (!deleted) {
+    const recipe = await Recipe.findById(req.params.id);
+    
+    if (!recipe) {
       return res.status(404).json({ error: "Recipe not found" });
     }
+    
+    // Verify ownership or admin status
+    if (recipe.author.toString() !== req.userId && req.userRole !== 'admin') {
+      return res.status(403).json({ error: "You can only delete your own recipes" });
+    }
+    
+    // Delete the recipe
+    await Recipe.findByIdAndDelete(req.params.id);
+    
+    // Remove recipe reference from user
+    await User.findByIdAndUpdate(recipe.author, {
+      $pull: { recipes: recipe._id }
+    });
+    
+    // Delete all comments associated with this recipe
+    await Comment.deleteMany({ recipe: recipe._id });
+    
+    // Remove recipe from users' likedRecipes arrays
+    await User.updateMany(
+      { likedRecipes: recipe._id },
+      { $pull: { likedRecipes: recipe._id } }
+    );
+    
     res.json({ message: "Recipe deleted" });
+  } catch (err) {
+    next(err); // Pass error to error handling middleware
+  }
+};
+
+/**
+ * POST /api/recipes/:id/like
+ */
+export const toggleLikeRecipe = async (req, res, next) => {
+  try {
+    const recipeId = req.params.id;
+    const userId = req.userId;
+    
+    const recipe = await Recipe.findById(recipeId);
+    
+    if (!recipe) {
+      return res.status(404).json({ error: "Recipe not found" });
+    }
+    
+    // Check if user is trying to like their own recipe
+    if (recipe.author.toString() === userId) {
+      return res.status(403).json({ error: "You cannot like your own recipe" });
+    }
+    
+    // Check if user already liked the recipe
+    const isLiked = recipe.likes.includes(userId);
+    
+    let update;
+    let userUpdate;
+    
+    if (isLiked) {
+      // Unlike
+      update = { $pull: { likes: userId }, $inc: { likesCount: -1 } };
+      userUpdate = { $pull: { likedRecipes: recipeId } };
+    } else {
+      // Like
+      update = { $addToSet: { likes: userId }, $inc: { likesCount: 1 } };
+      userUpdate = { $addToSet: { likedRecipes: recipeId } };
+    }
+    
+    const updatedRecipe = await Recipe.findByIdAndUpdate(recipeId, update, { new: true });
+    await User.findByIdAndUpdate(userId, userUpdate);
+    
+    res.json({
+      liked: !isLiked,
+      likesCount: updatedRecipe.likesCount || updatedRecipe.likes.length
+    });
   } catch (err) {
     next(err); // Pass error to error handling middleware
   }
