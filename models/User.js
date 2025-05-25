@@ -4,7 +4,9 @@ import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 
-const UserSchema = new mongoose.Schema(
+const { Schema, model } = mongoose;
+
+const UserSchema = new Schema(
   {
     name: {
       type: String,
@@ -58,6 +60,24 @@ const UserSchema = new mongoose.Schema(
     },
     resetToken: String,
     resetTokenExpiration: Date,
+    username: { type: String, required: true, unique: true },
+    passwordHash: { type: String, required: true },
+    avatarUrl: String,
+    
+    // References to user's recipes
+    recipes: [{ type: Schema.Types.ObjectId, ref: "recipes" }],
+    
+    // References to user's comments
+    comments: [{ type: Schema.Types.ObjectId, ref: "Comment" }],
+    
+    // References to recipes liked by user
+    likedRecipes: [{ type: Schema.Types.ObjectId, ref: "recipes" }],
+    
+    // References to comments liked by user
+    likedComments: [{ type: Schema.Types.ObjectId, ref: "Comment" }],
+    
+    created_at: { type: Date, default: Date.now },
+    updated_at: { type: Date, default: Date.now },
   },
   {
     timestamps: true,
@@ -87,6 +107,12 @@ UserSchema.pre("save", async function () {
   }
 });
 
+// Pre-save middleware to update the updated_at field
+UserSchema.pre('save', function(next) {
+  this.updated_at = Date.now();
+  next();
+});
+
 // Method to compare password
 UserSchema.methods.comparePassword = function (plain) {
   return bcrypt.compare(plain, this.password);
@@ -111,4 +137,4 @@ UserSchema.statics.findActive = function () {
   return this.find({ isActive: true });
 };
 
-export default mongoose.model("User", UserSchema);
+export default model("User", UserSchema);

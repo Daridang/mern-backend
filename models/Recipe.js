@@ -34,7 +34,19 @@ const RecipeSchema = new Schema({
   instructions: { groups: [InstructionGroupSchema] },
   extras: [String],
 
+  author: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  likesCount: { type: Number, default: 0 },
+  commentsCount: { type: Number, default: 0 },
+
   created_at: { type: Date, default: Date.now },
+  updated_at: { type: Date, default: Date.now },
+});
+
+// Pre-save middleware to update the updated_at field
+RecipeSchema.pre('save', function(next) {
+  this.updated_at = Date.now();
+  next();
 });
 
 export default model("recipes", RecipeSchema);
