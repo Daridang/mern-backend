@@ -109,7 +109,7 @@ export const createRecipe = async (req, res, next) => {
       serving_size,
       prep_time,
       temperature,
-      image_url: imageUrl,
+      image: imageUrl,
       ingredients: parsedFields.ingredients,
       equipment: parsedFields.equipment,
       instructions: parsedFields.instructions,
