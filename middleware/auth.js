@@ -16,7 +16,6 @@ const extractToken = (authHeader) => {
 
 export default async function auth(req, res, next) {
   if (!JWT_SECRET) {
-    console.error("JWT_SECRET is not defined in environment variables.");
     return res
       .status(500)
       .json({ error: "Internal server error: JWT secret not configured" });
@@ -40,7 +39,6 @@ export default async function auth(req, res, next) {
       } else if (err.name === "JsonWebTokenError") {
         return res.status(401).json({ error: "Invalid token" });
       } else {
-        console.error("JWT verification error:", err);
         return res.status(401).json({ error: "Authentication failed" });
       }
     }
@@ -66,12 +64,9 @@ export default async function auth(req, res, next) {
 
       next();
     } catch (dbErr) {
-      console.error("Database error in auth middleware:", dbErr);
       return res.status(500).json({ error: "Internal server error" });
     }
   } catch (error) {
-    // Catch any other unexpected errors
-    console.error("Unexpected error in auth middleware:", error);
     return res.status(500).json({ error: "Internal server error" });
   }
 }

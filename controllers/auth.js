@@ -22,7 +22,6 @@ const generateToken = (user) => {
 // POST /api/auth/register
 export const register = async (req, res) => {
   try {
-    console.log(`object: ${JSON.stringify(req.body)}`);
     const { name, email, password } = req.body;
 
     // Check if user already exists
@@ -51,7 +50,6 @@ export const register = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Registration error:", error);
     res.status(500).json({ error: "Failed to register user" });
   }
 };
@@ -93,7 +91,6 @@ export const login = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Login error:", error);
     res.status(500).json({ error: "Failed to login" });
   }
 };
@@ -117,7 +114,6 @@ export const getCurrentUser = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get current user error:", error);
     res.status(500).json({ error: "Failed to get current user" });
   }
 };
@@ -146,7 +142,6 @@ export const updateProfile = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Update profile error:", error);
     res.status(400).json({ error: "Failed to update profile" });
   }
 };
@@ -180,7 +175,6 @@ export const changePassword = async (req, res) => {
 
     res.json({ message: "Password changed successfully" });
   } catch (error) {
-    console.error("Change password error:", error);
     res.status(400).json({ error: "Failed to change password" });
   }
 };

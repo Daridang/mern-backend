@@ -203,41 +203,29 @@ export const toggleLikeComment = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.userId;
-
-    console.log(`🔄 toggleLikeComment: userId=${userId}, commentId=${id}`);
-
     const comment = await Comment.findById(id);
     if (!comment) {
-      console.log(`❌ Комментарий не найден: ${id}`);
       return res.status(404).json({ message: "Comment not found" });
     }
 
     // Check if user is trying to like their own comment
     if (comment.author.toString() === userId) {
-      console.log(
-        `🚫 Пользователь ${userId} попытался лайкнуть свой комментарий ${id}`
-      );
       return res
         .status(403)
         .json({ message: "You cannot like your own comment" });
     }
 
     const isLiked = comment.likes.includes(userId);
-    console.log(
-      `💡 Статус лайка: ${isLiked ? "уже лайкнут" : "не лайкнут"} пользователем`
-    );
 
     // Modify the comment object directly
     if (isLiked) {
       // Remove the user's like
-      comment.likes = comment.likes.filter(like => like.toString() !== userId);
-      console.log(`👎 Удаляем лайк пользователя ${userId} с комментария ${id}`);
+      comment.likes = comment.likes.filter(
+        (like) => like.toString() !== userId
+      );
     } else {
       // Add the user's like
       comment.likes.push(userId);
-      console.log(
-        `👍 Добавляем лайк пользователя ${userId} к комментарию ${id}`
-      );
     }
 
     // Save the comment to trigger the pre-save middleware
@@ -245,10 +233,6 @@ export const toggleLikeComment = async (req, res) => {
 
     // Populate author details to match the format from getRecipeComments
     await updatedComment.populate("author", "name username avatar");
-
-    console.log(
-      `✅ Комментарий обновлён. Текущее количество лайков: ${updatedComment.likes.length}, likesCount: ${updatedComment.likesCount}`
-    );
 
     // Update user's likedComments
     let userUpdate;
@@ -261,20 +245,11 @@ export const toggleLikeComment = async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(userId, userUpdate);
 
     if (!updatedUser) {
-      console.log(`❌ Пользователь ${userId} не найден для обновления`);
       return res.status(404).json({ message: "User not found for update" });
     }
 
-    console.log(
-      `👤 Обновлён пользователь ${userId}: ${
-        isLiked ? "удалил лайк" : "поставил лайк"
-      } комментарию ${id}
-      &&&&&&&&&&&`
-    );
-
     res.status(200).json(updatedComment);
   } catch (error) {
-    console.error("🔥 Ошибка при переключении лайка комментария:", error);
     res.status(500).json({
       message: "Failed to toggle like on comment",
       error: error.message,
