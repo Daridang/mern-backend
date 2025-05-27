@@ -243,6 +243,9 @@ export const toggleLikeComment = async (req, res) => {
     // Save the comment to trigger the pre-save middleware
     const updatedComment = await comment.save();
 
+    // Populate author details to match the format from getRecipeComments
+    await updatedComment.populate("author", "name username avatar");
+
     console.log(
       `✅ Комментарий обновлён. Текущее количество лайков: ${updatedComment.likes.length}, likesCount: ${updatedComment.likesCount}`
     );
