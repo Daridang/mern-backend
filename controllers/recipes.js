@@ -27,25 +27,29 @@ async function uploadToCloudinary(buffer) {
  */
 export const getAll = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10, category } = req.query;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.max(1, parseInt(req.query.limit) || 10);
+    const { category } = req.query;
     const query = category ? { category } : {};
 
-    const list = await Recipe.find(query)
-      .populate("author", "name username avatar")
-      .sort({ created_at: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit)
-      .exec();
-
-    const count = await Recipe.countDocuments(query);
+    const [list, count] = await Promise.all([
+      Recipe.find(query)
+        .populate("author", "name username avatar")
+        .sort({ created_at: -1 })
+        .limit(limit)
+        .skip((page - 1) * limit)
+        .exec(),
+      Recipe.countDocuments(query),
+    ]);
 
     res.json({
       recipes: list,
+      totalRecipes: count,
       totalPages: Math.ceil(count / limit),
-      currentPage: parseInt(page),
+      currentPage: page,
     });
   } catch (err) {
-    next(err); // Pass error to error handling middleware
+    next(err);
   }
 };
 
