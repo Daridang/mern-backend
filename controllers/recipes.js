@@ -5,6 +5,7 @@ import Recipe from "../models/Recipe.js";
 import User from "../models/User.js";
 import Comment from "../models/Comment.js";
 import { validationResult } from "express-validator";
+import mongoose from "mongoose";
 
 /**
  * Helper: Uploads a buffer to Cloudinary and returns the result object
@@ -296,23 +297,19 @@ export const toggleLikeRecipe = async (req, res, next) => {
       return res.status(404).json({ error: "Recipe not found" });
     }
 
-    // Check if user is trying to like their own recipe
     if (recipe.author.toString() === userId) {
       return res.status(403).json({ error: "You cannot like your own recipe" });
     }
 
-    // Check if user already liked the recipe
     const isLiked = recipe.likes.includes(userId);
 
     let update;
     let userUpdate;
 
     if (isLiked) {
-      // Unlike
       update = { $pull: { likes: userId }, $inc: { likesCount: -1 } };
       userUpdate = { $pull: { likedRecipes: recipeId } };
     } else {
-      // Like
       update = { $addToSet: { likes: userId }, $inc: { likesCount: 1 } };
       userUpdate = { $addToSet: { likedRecipes: recipeId } };
     }
@@ -327,6 +324,6 @@ export const toggleLikeRecipe = async (req, res, next) => {
       likesCount: updatedRecipe.likesCount || updatedRecipe.likes.length,
     });
   } catch (err) {
-    next(err); // Pass error to error handling middleware
+    next(err);
   }
 };

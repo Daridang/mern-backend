@@ -43,16 +43,4 @@ const RecipeSchema = new Schema({
   updated_at: { type: Date, default: Date.now },
 });
 
-// Pre-save middleware to update the updated_at field and likesCount
-RecipeSchema.pre("save", function (next) {
-  this.updated_at = Date.now();
-
-  // Update likesCount if likes array was modified
-  if (this.isModified("likes")) {
-    this.likesCount = this.likes.length;
-  }
-
-  next();
-});
-
 export default model("recipes", RecipeSchema);
