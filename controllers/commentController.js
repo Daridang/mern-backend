@@ -116,7 +116,6 @@ export const updateComment = async (req, res) => {
     const { text } = req.body;
     const userId = req.userId;
 
-    // Find comment and check ownership
     const comment = await Comment.findById(id);
 
     if (!comment) {
@@ -129,13 +128,24 @@ export const updateComment = async (req, res) => {
         .json({ message: "You can only update your own comments" });
     }
 
-    // Update the comment
     comment.text = text;
     const updatedComment = await comment.save();
 
     await updatedComment.populate("author", "name username avatar");
 
-    res.status(200).json(updatedComment);
+    res.status(200).json({
+      id: updatedComment._id,
+      text: updatedComment.text,
+      author: {
+        id: updatedComment.author._id,
+        name: updatedComment.author.name,
+        avatar: updatedComment.author.avatar,
+      },
+      likesCount: updatedComment.likesCount,
+      likes: updatedComment.likes,
+      createdAt: updatedComment.createdAt,
+      updatedAt: updatedComment.updatedAt,
+    });
   } catch (error) {
     res
       .status(500)
