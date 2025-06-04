@@ -53,6 +53,14 @@ const UserSchema = new Schema(
       },
     ],
 
+    likedComments: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Comment",
+        default: [],
+      },
+    ],
+
     isActive: {
       type: Boolean,
       default: true,

@@ -109,6 +109,34 @@ export const getUserComments = async (req, res) => {
   }
 };
 
+// Get comments liked by the user
+export const getUserLikedComments = async (req, res) => {
+  try {
+    const userId = req.params.userId || req.userId;
+    const user = await User.findById(userId).populate({
+      path: "likedComments",
+      populate: [
+        { path: "recipe", select: "title" },
+        { path: "author", select: "name username avatar" },
+        {
+          path: "replies",
+          populate: {
+            path: "author",
+            select: "name username avatar",
+          },
+        },
+      ],
+    });
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.status(200).json(user.likedComments || []);
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch liked comments",
+      error: error.message,
+    });
+  }
+};
+
 // Update a comment
 export const updateComment = async (req, res) => {
   try {
