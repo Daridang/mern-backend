@@ -2,6 +2,7 @@
 .babelrc
 jest.config.js
 /uploads
+/scripts
 
 # Created by https://gitignore.org
 # Node.gitignore
