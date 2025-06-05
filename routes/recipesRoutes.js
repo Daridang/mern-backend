@@ -7,6 +7,7 @@ import {
   updateRecipe,
   deleteRecipe,
   toggleLikeRecipe,
+  getUserRecipes,
 } from "../controllers/recipes.js";
 import upload from "../middleware/upload.js";
 import { recipeValidationRules } from "../utils/validators.js";
@@ -16,6 +17,7 @@ const router = express.Router();
 
 router.get("/", getAll);
 router.get("/:id", getById);
+router.get("/user/:userId", getUserRecipes);
 router.post("/:id/like", auth, toggleLikeRecipe);
 router.post(
   "/",
