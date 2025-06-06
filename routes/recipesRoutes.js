@@ -33,6 +33,6 @@ router.put(
   validate,
   updateRecipe
 );
-router.delete("/:id", deleteRecipe);
+router.delete("/:id", auth, deleteRecipe);
 
 export default router;
