@@ -210,23 +210,12 @@ export const deleteUser = async (req, res) => {
       ),
     ]);
 
-    // Remove user's liked comments and recipes from other users' profiles
-    await Promise.all([
-      User.updateMany(
-        { likedComments: { $in: user.likedComments } },
-        { $pull: { likedComments: { $in: user.likedComments } } }
-      ),
-      User.updateMany(
-        { likedRecipes: { $in: user.likedRecipes } },
-        { $pull: { likedRecipes: { $in: user.likedRecipes } } }
-      ),
-    ]);
-
     // Finally, delete the user
     await User.findByIdAndDelete(userId);
 
     res.status(200).json({ message: "User profile deleted successfully" });
   } catch (error) {
+    console.log(`error:`, error);
     res.status(500).json({ error: "Failed to delete user profile" });
   }
 };
