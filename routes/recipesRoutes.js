@@ -28,6 +28,7 @@ router.post(
 );
 router.put(
   "/:id",
+  auth,
   upload.single("image"),
   recipeValidationRules(),
   validate,

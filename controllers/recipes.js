@@ -171,6 +171,11 @@ export const createRecipe = async (req, res, next) => {
  * (multipart/form-data: can send a new image)
  */
 export const updateRecipe = async (req, res, next) => {
+  // Validate request body
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
   try {
     // Check if user is the author of the recipe
     const recipe = await Recipe.findById(req.params.id);
@@ -179,7 +184,9 @@ export const updateRecipe = async (req, res, next) => {
     }
 
     // Verify ownership
-    if (recipe.author.toString() !== req.userId) {
+    if (recipe.author.equals(req.userId)) {
+      // Пользователь является автором, продолжаем
+    } else {
       return res
         .status(403)
         .json({ error: "You can only update your own recipes" });
@@ -205,6 +212,7 @@ export const updateRecipe = async (req, res, next) => {
       serving_size,
       prep_time,
       temperature,
+      clearImage,
     } = req.body;
 
     const updates = {
@@ -215,19 +223,25 @@ export const updateRecipe = async (req, res, next) => {
       serving_size,
       prep_time,
       temperature,
-      image: imageUrl || recipe.image, // Use existing image if no new one
-      ...parseJsonFields(req.body, [
+      updated_at: Date.now(),
+    };
+
+    if (imageUrl) {
+      updates.image = imageUrl;
+    } else if (clearImage === "true") {
+      updates.image = "";
+    } else {
+      updates.image = recipe.image;
+    }
+
+    Object.assign(
+      updates,
+      parseJsonFields(req.body, [
         "ingredients",
         "equipment",
         "instructions",
         "extras",
-      ]),
-      updated_at: Date.now(),
-    };
-
-    // Remove undefined fields
-    Object.keys(updates).forEach(
-      (key) => updates[key] === undefined && delete updates[key]
+      ])
     );
 
     // 3) Perform the update
