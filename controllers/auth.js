@@ -2,6 +2,8 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import bcrypt from "bcrypt";
+import Recipe from "../models/Recipe.js";
+import Comment from "../models/Comment.js";
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -176,5 +178,55 @@ export const changePassword = async (req, res) => {
     res.json({ message: "Password changed successfully" });
   } catch (error) {
     res.status(400).json({ error: "Failed to change password" });
+  }
+};
+
+// DELETE /api/auth/delete-profile - Delete user profile
+export const deleteUser = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    // Find the user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Delete all recipes created by the user
+    await Recipe.deleteMany({ author: userId });
+
+    // Delete all comments created by the user
+    await Comment.deleteMany({ author: userId });
+
+    // Remove user from 'likes' arrays in recipes and comments
+    await Promise.all([
+      Recipe.updateMany(
+        { likes: userId },
+        { $pull: { likes: userId }, $inc: { likesCount: -1 } }
+      ),
+      Comment.updateMany(
+        { likes: userId },
+        { $pull: { likes: userId }, $inc: { likesCount: -1 } }
+      ),
+    ]);
+
+    // Remove user's liked comments and recipes from other users' profiles
+    await Promise.all([
+      User.updateMany(
+        { likedComments: { $in: user.likedComments } },
+        { $pull: { likedComments: { $in: user.likedComments } } }
+      ),
+      User.updateMany(
+        { likedRecipes: { $in: user.likedRecipes } },
+        { $pull: { likedRecipes: { $in: user.likedRecipes } } }
+      ),
+    ]);
+
+    // Finally, delete the user
+    await User.findByIdAndDelete(userId);
+
+    res.status(200).json({ message: "User profile deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete user profile" });
   }
 };
