@@ -25,12 +25,15 @@ app.use(
   })
 );
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
 app.use("/images", express.static("public/images"));
 
 app.use("/api/recipes", recipesRoute);
-app.use("/api/auth", express.json(), authRoute);
+app.use("/api/auth", authRoute);
 
-app.use("/api/comments", express.json(), commentsRoute);
+app.use("/api/comments", commentsRoute);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
