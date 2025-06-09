@@ -2,6 +2,70 @@ import Comment from "../models/Comment.js";
 import Recipe from "../models/Recipe.js";
 import User from "../models/User.js";
 
+// Helper function for recursive population of replies
+async function populateCommentsReplies(comments, maxDepth = 5) {
+  if (maxDepth <= 0 || !comments || comments.length === 0) {
+    return;
+  }
+
+  for (let comment of comments) {
+    // Populate the replies at the current level
+    await comment.populate({
+      path: "replies",
+      populate: {
+        path: "author",
+        select: "name username avatar",
+      },
+    });
+
+    // Recursively populate replies of these replies
+    if (comment.replies && comment.replies.length > 0) {
+      await populateCommentsReplies(comment.replies, maxDepth - 1);
+    }
+  }
+}
+
+// Function to recursively delete comments and their replies (without permission check)
+async function recursivelyDeleteComment(commentId) {
+  // Find the comment and populate its direct replies
+  const comment = await Comment.findById(commentId).populate("replies");
+
+  if (!comment) {
+    // If comment is not found, it might have been deleted by a parent, so gracefully exit
+    return;
+  }
+
+  // Recursively delete all replies first
+  if (comment.replies && comment.replies.length > 0) {
+    for (const reply of comment.replies) {
+      await recursivelyDeleteComment(reply._id);
+    }
+  }
+
+  // Get recipe ID and author ID before deleting the comment
+  const recipeId = comment.recipe;
+  const authorId = comment.author;
+
+  // Delete the comment itself
+  await Comment.findByIdAndDelete(commentId);
+
+  // Remove comment reference from user's comments array (only if author exists)
+  await User.findByIdAndUpdate(authorId, {
+    $pull: { comments: commentId },
+  });
+
+  // Decrement comment count on recipe
+  await Recipe.findByIdAndUpdate(recipeId, {
+    $inc: { commentsCount: -1 },
+  });
+
+  // Remove comment from all users' likedComments arrays
+  await User.updateMany(
+    { likedComments: commentId },
+    { $pull: { likedComments: commentId } }
+  );
+}
+
 // Create a new comment
 export const createComment = async (req, res) => {
   try {
@@ -43,7 +107,7 @@ export const createComment = async (req, res) => {
       $inc: { commentsCount: 1 },
     });
 
-    // Populate author details
+    // Populate author details (for the newly created comment itself)
     await savedComment.populate("author", "name username avatar");
 
     res.status(201).json(savedComment);
@@ -65,14 +129,10 @@ export const getRecipeComments = async (req, res) => {
       parentComment: { $exists: false },
     })
       .populate("author", "name username avatar")
-      .populate({
-        path: "replies",
-        populate: {
-          path: "author",
-          select: "name username avatar",
-        },
-      })
       .sort({ createdAt: -1 });
+
+    // Recursively populate all replies for fetched comments
+    await populateCommentsReplies(comments);
 
     res.status(200).json(comments);
   } catch (error) {
@@ -92,14 +152,10 @@ export const getUserComments = async (req, res) => {
     })
       .populate("recipe", "title")
       .populate("author", "name username avatar")
-      .populate({
-        path: "replies",
-        populate: {
-          path: "author",
-          select: "name username avatar",
-        },
-      })
       .sort({ createdAt: -1 });
+
+    // Recursively populate all replies for fetched comments
+    await populateCommentsReplies(comments);
 
     res.status(200).json(comments);
   } catch (error) {
@@ -118,16 +174,13 @@ export const getUserLikedComments = async (req, res) => {
       populate: [
         { path: "recipe", select: "title" },
         { path: "author", select: "name username avatar" },
-        {
-          path: "replies",
-          populate: {
-            path: "author",
-            select: "name username avatar",
-          },
-        },
       ],
     });
     if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Recursively populate all replies for liked comments
+    await populateCommentsReplies(user.likedComments);
+
     res.status(200).json(user.likedComments || []);
   } catch (error) {
     res.status(500).json({
@@ -159,7 +212,9 @@ export const updateComment = async (req, res) => {
     comment.text = text;
     const updatedComment = await comment.save();
 
+    // Populate author details and its replies recursively
     await updatedComment.populate("author", "name username avatar");
+    await populateCommentsReplies([updatedComment]); // Populate replies for the updated comment
 
     res.status(200).json({
       id: updatedComment._id,
@@ -173,6 +228,8 @@ export const updateComment = async (req, res) => {
       likes: updatedComment.likes,
       createdAt: updatedComment.createdAt,
       updatedAt: updatedComment.updatedAt,
+      // Include replies if they were populated for the update
+      replies: updatedComment.replies || [],
     });
   } catch (error) {
     res
@@ -186,54 +243,38 @@ export const deleteComment = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.userId;
+    const userRole = req.userRole;
 
-    // Find comment and check ownership
-    const comment = await Comment.findById(id);
+    // Находим основной комментарий для удаления и выполняем проверку прав
+    const initialComment = await Comment.findById(id);
 
-    if (!comment) {
-      return res.status(404).json({ message: "Comment not found" });
+    if (!initialComment) {
+      console.log(`Server (deleteComment): Comment ${id} not found.`);
+      return res.status(404).json({ message: "Комментарий не найден" });
     }
 
-    if (comment.author.toString() !== userId && req.userRole !== "admin") {
+    // Проверка прав: только автор или администратор может удалить основной комментарий
+    if (initialComment.author.toString() !== userId && userRole !== "admin") {
+      console.log(
+        `Server (deleteComment): Permission denied for comment ${id}. Author: ${initialComment.author}, User: ${userId}`
+      );
       return res
         .status(403)
-        .json({ message: "You can only delete your own comments" });
+        .json({ message: "Вы можете удалять только свои комментарии" });
     }
 
-    // If this comment is a reply, remove it from its parent's replies array
-    if (comment.parentComment) {
-      await Comment.findByIdAndUpdate(comment.parentComment, {
-        $pull: { replies: id },
-      });
-    }
+    // Если проверка пройдена, запускаем рекурсивное удаление
+    await recursivelyDeleteComment(id);
 
-    // Get recipe ID before deleting
-    const recipeId = comment.recipe;
-
-    // Delete the comment
-    await Comment.findByIdAndDelete(id);
-
-    // Remove comment reference from user
-    await User.findByIdAndUpdate(comment.author, {
-      $pull: { comments: id },
-    });
-
-    // Decrement comment count on recipe
-    await Recipe.findByIdAndUpdate(recipeId, {
-      $inc: { commentsCount: -1 },
-    });
-
-    // Remove comment from users' likedComments arrays
-    await User.updateMany(
-      { likedComments: id },
-      { $pull: { likedComments: id } }
-    );
-
-    res.status(200).json({ message: "Comment deleted successfully" });
-  } catch (error) {
     res
-      .status(500)
-      .json({ message: "Failed to delete comment", error: error.message });
+      .status(200)
+      .json({ message: "Комментарий и все его ответы успешно удалены" });
+  } catch (error) {
+    console.error(`Ошибка при удалении комментария:`, error);
+    res.status(500).json({
+      message: "Не удалось удалить комментарий",
+      error: error.message,
+    });
   }
 };
 
@@ -272,6 +313,8 @@ export const toggleLikeComment = async (req, res) => {
 
     // Populate author details to match the format from getRecipeComments
     await updatedComment.populate("author", "name username avatar");
+    // Also recursively populate replies for the updated comment
+    await populateCommentsReplies([updatedComment]);
 
     // Update user's likedComments
     let userUpdate;
