@@ -200,17 +200,18 @@ export const deleteComment = async (req, res) => {
         .json({ message: "You can only delete your own comments" });
     }
 
+    // If this comment is a reply, remove it from its parent's replies array
+    if (comment.parentComment) {
+      await Comment.findByIdAndUpdate(comment.parentComment, {
+        $pull: { replies: id },
+      });
+    }
+
     // Get recipe ID before deleting
     const recipeId = comment.recipe;
 
     // Delete the comment
     await Comment.findByIdAndDelete(id);
-
-    // Delete all replies to this comment
-    const deletedReplies = await Comment.deleteMany({ parentComment: id });
-
-    // Calculate total deleted comments (main comment + replies)
-    const totalDeleted = 1 + deletedReplies.deletedCount;
 
     // Remove comment reference from user
     await User.findByIdAndUpdate(comment.author, {
@@ -219,7 +220,7 @@ export const deleteComment = async (req, res) => {
 
     // Decrement comment count on recipe
     await Recipe.findByIdAndUpdate(recipeId, {
-      $inc: { commentsCount: -totalDeleted },
+      $inc: { commentsCount: -1 },
     });
 
     // Remove comment from users' likedComments arrays
