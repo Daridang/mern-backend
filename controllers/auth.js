@@ -219,3 +219,34 @@ export const deleteUser = async (req, res) => {
     res.status(500).json({ error: "Failed to delete user profile" });
   }
 };
+
+// GET /api/users/:id - Get public user profile
+export const getUserProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const user = await User.findById(id).select(
+      "-password -favorites -resetToken -resetTokenExpiration"
+    );
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const recipes = await Recipe.find({ author: id }).sort({ created_at: -1 });
+
+    res.json({
+      user: {
+        id: user._id,
+        name: user.name,
+        role: user.role,
+        avatar: user.avatar,
+        createdAt: user.createdAt,
+        recipesCount: recipes.length,
+      },
+      recipes,
+    });
+  } catch (error) {
+    console.error("Error fetching user profile:", error);
+    res.status(500).json({ error: "Failed to fetch user profile" });
+  }
+};
