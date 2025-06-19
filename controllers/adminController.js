@@ -32,7 +32,14 @@ export const getUserById = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "Пользователь не найден" });
     }
-    res.json(user);
+    const recipes = await Recipe.find({ author: req.params.id }).sort({
+      created_at: -1,
+    });
+    const comments = await Comment.find({ author: req.params.id })
+      .populate("recipe", "title")
+      .populate("author", "name username avatar")
+      .sort({ createdAt: -1 });
+    res.json({ user, recipes, comments });
   } catch (error) {
     res.status(500).json({
       message: "Не удалось получить данные пользователя",
