@@ -132,3 +132,212 @@ export const deleteUserByAdmin = async (req, res) => {
     res.status(500).json({ error: "Failed to delete user profile" });
   }
 };
+
+export const getAllRecipesAdmin = async (req, res) => {
+  try {
+    const { search, category, authorId } = req.query;
+    const query = {};
+
+    if (search) {
+      const searchRegex = new RegExp(search, "i");
+      query.title = searchRegex;
+    }
+    if (category) {
+      query.category = category;
+    }
+    if (authorId) {
+      query.author = authorId;
+    }
+
+    const recipes = await Recipe.find(query)
+      .populate("author", "name username avatar")
+      .sort({ created_at: -1 });
+    res.json(recipes);
+  } catch (error) {
+    res.status(500).json({
+      message: "Не удалось получить список рецептов",
+      error: error.message,
+    });
+  }
+};
+
+export const getRecipeByIdAdmin = async (req, res) => {
+  try {
+    const recipe = await Recipe.findById(req.params.id).populate(
+      "author",
+      "name username avatar"
+    );
+    if (!recipe) {
+      return res.status(404).json({ message: "Рецепт не найден" });
+    }
+    res.json(recipe);
+  } catch (error) {
+    res.status(500).json({
+      message: "Не удалось получить данные рецепта",
+      error: error.message,
+    });
+  }
+};
+
+export const updateRecipeAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Assuming req.body contains all fields to update, including image if handled by multer before this.
+    // For simplicity, let's assume direct update of text fields for now.
+    const updatedRecipe = await Recipe.findByIdAndUpdate(id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!updatedRecipe) {
+      return res.status(404).json({ message: "Рецепт не найден" });
+    }
+
+    res.json({ message: "Рецепт успешно обновлен", recipe: updatedRecipe });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Не удалось обновить рецепт", error: error.message });
+  }
+};
+
+export const deleteRecipeAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const recipeToDelete = await Recipe.findById(id);
+
+    if (!recipeToDelete) {
+      return res.status(404).json({ message: "Рецепт не найден" });
+    }
+
+    // Remove recipe reference from author's recipes list
+    await User.findByIdAndUpdate(recipeToDelete.author, {
+      $pull: { recipes: id },
+    });
+
+    // Delete all comments associated with this recipe
+    await Comment.deleteMany({ recipe: id });
+
+    // Remove recipe from all users' likedRecipes arrays
+    await User.updateMany(
+      { likedRecipes: id },
+      { $pull: { likedRecipes: id } }
+    );
+
+    await Recipe.findByIdAndDelete(id);
+
+    res
+      .status(200)
+      .json({ message: "Рецепт и связанные данные успешно удалены" });
+  } catch (error) {
+    console.log(`error:`, error);
+    res.status(500).json({ error: "Не удалось удалить рецепт" });
+  }
+};
+
+export const getAllCommentsAdmin = async (req, res) => {
+  try {
+    const { search, authorId, recipeId } = req.query;
+    const query = {};
+
+    if (search) {
+      const searchRegex = new RegExp(search, "i");
+      query.text = searchRegex;
+    }
+    if (authorId) {
+      query.author = authorId;
+    }
+    if (recipeId) {
+      query.recipe = recipeId;
+    }
+
+    const comments = await Comment.find(query)
+      .populate("author", "name username avatar")
+      .populate("recipe", "title")
+      .sort({ createdAt: -1 });
+    res.json(comments);
+  } catch (error) {
+    res.status(500).json({
+      message: "Не удалось получить список комментариев",
+      error: error.message,
+    });
+  }
+};
+
+export const getCommentByIdAdmin = async (req, res) => {
+  try {
+    const comment = await Comment.findById(req.params.id)
+      .populate("author", "name username avatar")
+      .populate("recipe", "title");
+    if (!comment) {
+      return res.status(404).json({ message: "Комментарий не найден" });
+    }
+    res.json(comment);
+  } catch (error) {
+    res.status(500).json({
+      message: "Не удалось получить данные комментария",
+      error: error.message,
+    });
+  }
+};
+
+export const updateCommentAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { text } = req.body;
+
+    const updatedComment = await Comment.findByIdAndUpdate(
+      id,
+      { text },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedComment) {
+      return res.status(404).json({ message: "Комментарий не найден" });
+    }
+
+    res.json({
+      message: "Комментарий успешно обновлен",
+      comment: updatedComment,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Не удалось обновить комментарий",
+      error: error.message,
+    });
+  }
+};
+
+export const deleteCommentAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const commentToDelete = await Comment.findById(id);
+
+    if (!commentToDelete) {
+      return res.status(404).json({ message: "Комментарий не найден" });
+    }
+
+    // Remove comment reference from author's comments list
+    await User.findByIdAndUpdate(commentToDelete.author, {
+      $pull: { comments: id },
+    });
+
+    // Decrement comments count on recipe
+    await Recipe.findByIdAndUpdate(commentToDelete.recipe, {
+      $inc: { commentsCount: -1 },
+    });
+
+    // Remove comment from all users' likedComments arrays
+    await User.updateMany(
+      { likedComments: id },
+      { $pull: { likedComments: id } }
+    );
+
+    await Comment.findByIdAndDelete(id);
+
+    res.status(200).json({ message: "Комментарий успешно удален" });
+  } catch (error) {
+    console.log(`error:`, error);
+    res.status(500).json({ error: "Не удалось удалить комментарий" });
+  }
+};

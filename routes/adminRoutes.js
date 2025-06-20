@@ -7,6 +7,14 @@ import {
   updateUser,
   toggleUserStatus,
   deleteUserByAdmin,
+  getAllRecipesAdmin,
+  getRecipeByIdAdmin,
+  updateRecipeAdmin,
+  deleteRecipeAdmin,
+  getAllCommentsAdmin,
+  getCommentByIdAdmin,
+  updateCommentAdmin,
+  deleteCommentAdmin,
 } from "../controllers/adminController.js";
 
 const router = express.Router();
@@ -21,5 +29,17 @@ router.get("/users/:id", getUserById);
 router.put("/users/:id", updateUser);
 router.patch("/users/:id/status", toggleUserStatus);
 router.delete("/users/:id", deleteUserByAdmin);
+
+// Recipe Management
+router.get("/recipes", getAllRecipesAdmin);
+router.get("/recipes/:id", getRecipeByIdAdmin);
+router.put("/recipes/:id", updateRecipeAdmin);
+router.delete("/recipes/:id", deleteRecipeAdmin);
+
+// Comment Management
+router.get("/comments", getAllCommentsAdmin);
+router.get("/comments/:id", getCommentByIdAdmin);
+router.put("/comments/:id", updateCommentAdmin);
+router.delete("/comments/:id", deleteCommentAdmin);
 
 export default router;
